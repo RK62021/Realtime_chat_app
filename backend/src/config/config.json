@@ -1,0 +1,23 @@
+{
+  "development": {
+    "username": "chat_user",
+    "password": "chat_pass",
+    "database": "chatdb",
+    "host": "postgres", 
+    "dialect": "postgres"
+  },
+  "test": {
+    "username": "chat_user",
+    "password": "chat_pass",
+    "database": "chatdb_test",
+    "host": "postgres",
+    "dialect": "postgres"
+  },
+  "production": {
+    "username": "chat_user",
+    "password": "chat_pass",
+    "database": "chatdb_prod",
+    "host": "postgres",
+    "dialect": "postgres"
+  }
+}

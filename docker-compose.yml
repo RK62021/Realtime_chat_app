@@ -1,0 +1,80 @@
+# Docker Compose configuration for Realtime Chat App (Monolithic)
+# 
+# Services:
+#   - postgres: PostgreSQL 16 database for storing chat data.
+#     - Uses a named volume (postgres_data) for data persistence.
+#     - Exposes port 5432 for database connections.
+#     - Configured with custom user, password, and database.
+#
+#   - pgadmin: Web-based PostgreSQL administration tool (pgAdmin 4).
+#     - Accessible at http://localhost:5050.
+#     - Depends on the postgres service.
+#     - Default login: admin@chat.com / admin.
+#
+#   - redis: Redis 7 in-memory data store for caching and real-time features.
+#     - Uses a named volume (redis_data) for data persistence.
+#     - Exposes port 6379.
+#
+#   - backend: Node.js backend service for the chat application.
+#     - Built from the ./backend directory.
+#     - Mounts source code for live development.
+#     - Loads environment variables from ./backend/.env.
+#     - Exposes port 3000.
+#     - Depends on postgres and redis services.
+#
+# Volumes:
+#   - postgres_data: Persists PostgreSQL data.
+#   - redis_data: Persists Redis data.
+services:
+  postgres:
+    image: postgres:16  
+    container_name: chat_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: chat_user
+      POSTGRES_PASSWORD: chat_pass
+      POSTGRES_DB: chatdb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: chat_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@chat.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
+  redis:
+    image: redis:7
+    container_name: chat_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  backend:
+     build: ./backend
+     container_name: chat_backend
+     restart: always
+     volumes:
+      - ./backend:/app
+      - /app/node_modules
+     env_file:
+      - ./backend/.env
+     ports:
+      - "3000:3000"
+     depends_on:
+      - postgres
+      - redis
+
+volumes:
+  postgres_data:
+  redis_data:
