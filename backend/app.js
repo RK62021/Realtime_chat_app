@@ -3,7 +3,11 @@ const express = require('express');
 const cors = require('cors');
 const routes = require('./src/routes/index.js');
 const {errorHandler} = require('./src/middleware/error.middleware.js');
+const cookieParser = require('cookie-parser');  // Import cookie-parser
+const passport = require('passport');
 
+
+// Initialize express app
 const app = express(); // Initialize express app
 dotenv.config(); // Load environment variables
 app.use(cors(
@@ -16,10 +20,15 @@ app.use(cors(
 
 app.use(express.json({limit: '1mb'})); // To handle large payloads
 app.use(express.urlencoded({ extended: true, limit: '1mb' })); // To handle URL-encoded data
+app.use(cookieParser()); // Use cookie-parser middleware
+app.use(passport.initialize()); // Initialize passport
+
+
+
 
 
 // Routes
-app.use('/api', routes);
+app.use('/api/v1', routes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
