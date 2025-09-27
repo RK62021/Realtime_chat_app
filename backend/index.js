@@ -1,8 +1,6 @@
 const { connectDB } = require('./src/config/db.js');
 const app = require('./app.js');
 
-
-
 app.get('/', (req, res) => {
   res.send('Backend running inside Docker in local 🚀');
 });
