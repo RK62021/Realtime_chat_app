@@ -12,7 +12,7 @@ const app = express(); // Initialize express app
 dotenv.config(); // Load environment variables
 app.use(cors(
     {
-        origin: '*',
+        origin: 'http://localhost:5173', // Allow requests from this origin
         methods: ['GET', 'POST', 'PUT', 'DELETE'],
         credentials: true
     }

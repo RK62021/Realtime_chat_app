@@ -2,8 +2,12 @@ const {Router} = require('express');
 const AuthController = require('../controllers/auth.controller.js');
 const router = Router();
 const passport = require('passport');
+const authMiddleware = require('../middleware/auth.middleware.js');
 
 // Auth routes
+
+// user data for state management
+router.get('/me', authMiddleware, AuthController.getUserData);
 
 
 // Registration route   

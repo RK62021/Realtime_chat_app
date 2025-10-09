@@ -7,59 +7,24 @@ module.exports = {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
-        type: Sequelize.INTEGER
+        type: Sequelize.INTEGER,
       },
-      name: {
-        type: Sequelize.STRING,
-        allowNull: false
-      },
-      email: {
-        type: Sequelize.STRING,
-        allowNull: false,
-        unique: true
-      },
-      username: {
-        type: Sequelize.STRING,
-        allowNull: false,
-        unique: true
-      },
-      password_hash: {
-        type: Sequelize.TEXT,
-        allowNull: false,
-      },
-      profile_pic: {
-        type: Sequelize.TEXT
-      },
-      status_message: {
-        type: Sequelize.TEXT,
-        defaultValue: "Hey there! I am using ChatApp."
-      },
-      is_online: {
-        type: Sequelize.BOOLEAN,
-        defaultValue: false
-      },
-      last_seen: {
-        type: Sequelize.DATE
-      },
-      oauth_provider: {
-        type: Sequelize.STRING
-      },
-      oauth_id: {
-        type: Sequelize.STRING
-      },
-      createdAt: {
-        allowNull: false,
-        type: Sequelize.DATE,
-        defaultValue: Sequelize.NOW
-      },
-      updatedAt: {
-        allowNull: false,
-        type: Sequelize.DATE,
-        defaultValue: Sequelize.NOW
-      }
+      name: { type: Sequelize.STRING, allowNull: false },
+      email: { type: Sequelize.STRING, allowNull: false, unique: true },
+      username: { type: Sequelize.STRING, allowNull: false, unique: true },
+      password_hash: { type: Sequelize.TEXT, allowNull: false },
+      profile_pic: { type: Sequelize.TEXT },
+      status_message: { type: Sequelize.TEXT, defaultValue: "Hey there! I am using ChatApp." },
+      is_online: { type: Sequelize.BOOLEAN, defaultValue: false },
+      last_seen: { type: Sequelize.DATE },
+      oauth_provider: { type: Sequelize.STRING },
+      oauth_id: { type: Sequelize.STRING },
+      createdAt: { allowNull: false, type: Sequelize.DATE, defaultValue: Sequelize.fn('NOW') },
+      updatedAt: { allowNull: false, type: Sequelize.DATE, defaultValue: Sequelize.fn('NOW') },
     });
   },
+
   async down(queryInterface, Sequelize) {
     await queryInterface.dropTable('Users');
-  }
+  },
 };

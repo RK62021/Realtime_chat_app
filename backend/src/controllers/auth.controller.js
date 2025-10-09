@@ -5,25 +5,30 @@ const {
   generateRefreshToken,
   verifyToken,
 } = require('../utils/jwt.js');
-const User = require('../models/user.js');
-const AuthToken = require('../models/authToken.js');
+const db = require('../models');
+const { User, AuthToken, Sequelize } = db;
+const { Op } = Sequelize;
 const bcrypt = require('bcrypt');
-const { Op } = require('sequelize');
+
 const asynchandler = require('../utils/asynchandler.js');
 
 class AuthController {
   // Register a new user
   static register = asynchandler(async (req, res) => {
-    const { username, email, password, name } = req.body;
-    if (!username || !email || !password || !name) {
+    const { username, email, password, fullname } = req.body;
+    if (!username || !email || !password || !fullname) {
       throw new ApiError(
         400,
-        'Username, email, password, and name are required'
+        'Username, email, password, and fullname are required'
       );
     }
+
+    console.log(`before user creation`, username, email, fullname, password);
+
     const existingUser = await User.findOne({
       where: { [Op.or]: [{ username }, { email }] },
     });
+
     if (existingUser) {
       throw new ApiError(409, 'Username or email already exists');
     }
@@ -31,13 +36,28 @@ class AuthController {
     const newUser = await User.create({
       username,
       email,
-      password: hashedPassword,
-      name,
+      password_hash: hashedPassword,
+      name: fullname,
     });
 
-    const accessToken = generateAccessToken(newUser.id);
-    const refreshToken = generateRefreshToken(newUser.id);
-    await AuthToken.create({ userId: newUser.id, token: refreshToken });
+    const accessToken = generateAccessToken({
+      id: newUser.id,
+      username: newUser.username,
+      email: newUser.email,
+    });
+
+    const refreshToken = generateRefreshToken({ id: newUser.id });
+    if (!accessToken || !refreshToken) {
+      throw new ApiError(500, 'Token generation failed');
+    }
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // Set expiration to 7 days from now
+
+    await AuthToken.create({
+      user_id: newUser.id,
+      refresh_token: refreshToken,
+      expires_at: expiresAt,
+    });
 
     const cookieOptions = {
       httpOnly: true,
@@ -47,35 +67,85 @@ class AuthController {
     };
 
     res.cookie('refreshToken', refreshToken, cookieOptions);
-    res
-      .status(201)
-      .json(
-        ApiResponse.success(
-          'User registered successfully',
-          { accessToken },
-          201
-        )
-      );
-  });
+    res.status(201).json(
+      ApiResponse.success(
+        'User registered successfully',
+        {
+          accessToken,
+
+          user: {
+            id: newUser.id,
+            username: newUser.username,
+            email: newUser.email,
+            avatar: newUser.profile_pic,
+            createdAt: newUser.createdAt,
+            updatedAt: newUser.updatedAt,
+          },
+
+          needSetup: !newUser.username, // true if username is not set
+        },
+        201
+      )
+    );
+  }); // Done working on it
 
   // Login user
   static login = asynchandler(async (req, res) => {
     const { username, password } = req.body;
+
     if (!username || !password) {
       throw new ApiError(400, 'Username and password are required');
     }
-    const user = await User.findOne({ where: { username } });
+
+    const user = await User.findOne({
+      // Allow login with username or email
+      where: {
+        [Op.or]: [{ username: username }, { email: username }],
+      },
+    }); // Allow login with username or email
+
     if (!user) {
       throw new ApiError(401, 'Invalid username or password');
     }
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      throw new ApiError(401, 'Invalid username or password');
-    }
-    const accessToken = generateAccessToken(user.id);
-    const refreshToken = generateRefreshToken(user.id);
-    await AuthToken.create({ userId: user.id, token: refreshToken });
 
+    const isMatch = await bcrypt.compare(password, user.password_hash); // Compare hashed passwords
+
+    if (!isMatch) {
+      throw new ApiError(401, 'Invalid username or password'); // Unauthorized
+    }
+
+    const accessToken = generateAccessToken({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+    }); // Generate access token
+    const refreshToken = generateRefreshToken({ id: user.id }); // Generate refresh token
+
+    if (!accessToken || !refreshToken) {
+      throw new ApiError(500, 'Token generation failed'); // Internal Server Error
+    }
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // Set expiration to 7 days from now
+
+    await AuthToken.findOne({ user_id: user.id }).then(
+      async (existingToken) => {
+        if (existingToken) {
+          await AuthToken.update(
+            { token: refreshToken, expires_at: expiresAt },
+            { where: { user_id: user.id } }
+          );
+        } else {
+          await AuthToken.create({
+            user_id: user.id,
+            token: refreshToken,
+            expires_at: expiresAt,
+          });
+        }
+      }
+    ); // Upsert refresh token
+
+    // Set refresh token in HTTP-only cookie
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // Set to true in production
@@ -84,12 +154,27 @@ class AuthController {
     };
 
     res.cookie('refreshToken', refreshToken, cookieOptions);
-    res
-      .status(200)
-      .json(
-        ApiResponse.success('User logged in successfully', { accessToken }, 200)
-      );
-  });
+    res.status(200).json(
+      ApiResponse.success(
+        'User logged in successfully',
+        {
+          accessToken,
+
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatar: user.profile_pic,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+          },
+          needSetup: !user.username, // true if username is not set
+        },
+
+        200
+      )
+    );
+  }); // Done working on it
 
   // logout user
   static logout = asynchandler(async (req, res) => {
@@ -257,6 +342,34 @@ class AuthController {
           { accessToken },
           200
         )
+      );
+  });
+
+  static getUserData = asynchandler(async (req, res) => {
+    // req.user is set by authMiddleware
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, 'Unauthorized');
+    }
+
+    const userId = req.user.id;
+    const user = await User.findByPk(userId, {
+      attributes: [
+        'id',
+        'username',
+        'email',
+        'name',
+        'profile_pic',
+        'createdAt',
+        'updatedAt',
+      ],
+    });
+    if (!user) {
+      throw new ApiError(404, 'User not found');
+    }
+    res
+      .status(200)
+      .json(
+        ApiResponse.success('User data fetched successfully', { user }, 200)
       );
   });
 }
