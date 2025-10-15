@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { loginThunk } from "../features/auth/authThunk.js";
-import { toast } from "react-toastify";
+import { showToast, toastMessages } from "../utils/toast";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -24,16 +24,16 @@ export default function Login() {
     try {
       const result = await dispatch(loginThunk(payload)).unwrap();
 
-      toast.success("Login successful 🎉");
+      showToast.success(toastMessages.auth.loginSuccess);
     } catch (err) {
-      toast.error("Something went wrong. Please try again.");
+      showToast.error(toastMessages.auth.loginError);
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogle = async () => {
-    toast.info("Google login coming soon 🚀", { position: "top-center" });
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/google`;
   };
 
   return (
@@ -124,7 +124,7 @@ export default function Login() {
 
           <button
             onClick={handleGoogle}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-gray-900 font-medium hover:bg-gray-100 transition-colors"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-gray-900 font-medium hover:bg-gray-100 transition-colors cursor-pointer"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"

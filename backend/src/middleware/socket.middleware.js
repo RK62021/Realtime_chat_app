@@ -8,7 +8,7 @@ function SocketAuthMiddleware(socket, next) {
   if (!token) return next(new Error('No token provided'));
 
   try {
-    const user = verifyToken(token, process.env.JWT_SECRET);
+    const user = verifyToken(token, process.env.JWT_ACCESS_TOKEN_SECRET);
     socket.user = user; // attach decoded user info
     next();
   } catch (err) {

@@ -8,7 +8,7 @@ export const Api_ENDPOINTS = {
     FORGOT_PASSWORD: `${API_URL}/auth/forgot-password`,
   },
   User: {
-    USERNAME_SETUP: `${API_URL}/user/username-setup`,
+    USERNAME_SETUP: `${API_URL}/auth/set-username`,
     GET_USER: `${API_URL}/user/me`,
     UPDATE_AVATAR: `${API_URL}/user/update-avatar`,
   },

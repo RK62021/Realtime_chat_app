@@ -8,7 +8,7 @@ function initializeSocket(server) {
   // create socket.io server
   const io = new Server(server, {
     cors: {
-      origin: '*', // later change to specific domain
+      origin: 'http://localhost:5173', // later change to specific domain
       methods: ['GET', 'POST'],
       credentials: true,
     },
@@ -28,8 +28,11 @@ function initializeSocket(server) {
         `❌ User disconnected: ${socket.user.id} | Reason: ${reason}`
       );
     });
+
+
   });
 
+  console.log('🚀 Socket.io initialized');
   ioInstance = io;
   return io;
 }

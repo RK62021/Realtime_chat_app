@@ -6,7 +6,6 @@ import {
   Navigate,
 } from "react-router-dom";
 import NotFound from "../pages/NotFound.jsx";
-import UsernameSetup from "../pages/UsernameSetup.jsx";
 import Signup from "../pages/Signup.jsx";
 import Login from "../pages/Login.jsx";
 import ForgotPassword from "../pages/ForgotPassword.jsx";
@@ -14,6 +13,8 @@ import ChatRoom from "../pages/ChatRoom.jsx";
 import Protected from "./protected.routes.jsx";
 import SetupRoute from "./Auth.routes.jsx";
 import GuestRoute from "./Guest.routes.jsx";
+import Layout from "../components/Layout.jsx";
+import AuthSuccess from "../pages/AuthSuccess.jsx";
 
 const AppRoutes = () => {
   // Temporary placeholders
@@ -38,28 +39,25 @@ const AppRoutes = () => {
           </GuestRoute>
         } />
 
-        {/* username setup route */}
-        <Route
-          path="/onboarding/username"
-          element={
-            <SetupRoute>
-              <UsernameSetup />
-            </SetupRoute>
-          }
-        />
+       
 
         {/* Protected Route  */}
         <Route
           path="/dashboard"
           element={
             <Protected>
-              <ChatRoom />
+              <Layout>
+                <ChatRoom />
+              </Layout>
             </Protected>
           }
         />
 
         {/* Redirect root to dashboard */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+        {/* for google auth redirect */}
+        <Route path="/auth/success" element={<AuthSuccess />} />
 
         {/* Catch-all for 404 */}
         <Route path="*" element={<NotFound />} />

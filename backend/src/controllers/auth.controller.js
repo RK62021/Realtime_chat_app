@@ -132,13 +132,13 @@ class AuthController {
       async (existingToken) => {
         if (existingToken) {
           await AuthToken.update(
-            { token: refreshToken, expires_at: expiresAt },
+            { refresh_token: refreshToken, expires_at: expiresAt },
             { where: { user_id: user.id } }
           );
         } else {
           await AuthToken.create({
             user_id: user.id,
-            token: refreshToken,
+            refresh_token: refreshToken,
             expires_at: expiresAt,
           });
         }
@@ -182,7 +182,7 @@ class AuthController {
     if (!refreshToken) {
       throw new ApiError(400, 'Refresh token is required');
     }
-    await AuthToken.destroy({ where: { token: refreshToken } });
+    await AuthToken.destroy({ where: { refresh_token: refreshToken } });
     res.clearCookie('refreshToken');
     res
       .status(200)
@@ -192,10 +192,13 @@ class AuthController {
   // Username availability check
   static UsernameAvailability = asynchandler(async (req, res) => {
     const { username } = req.params;
-    if (!username) {
+
+    if (!username || username.trim() === '') {
       throw new ApiError(400, 'Username is required');
     }
+
     const user = await User.findOne({ where: { username } });
+
     if (user) {
       return res
         .status(200)
@@ -224,127 +227,174 @@ class AuthController {
     } catch (error) {
       throw new ApiError(
         403,
-        'Refresh token is invalid or expired please login again'
+        'Refresh token is invalid or expired. Please login again.'
       );
     }
 
     const storedToken = await AuthToken.findOne({
-      where: { token: refreshToken },
+      where: { refresh_token: refreshToken },
     });
+
     if (!storedToken) {
       throw new ApiError(
         401,
-        'Refresh token is invalid or expired please login again'
+        'Invalid or revoked refresh token. Please login again.'
       );
     }
 
-    const findUser = await User.findByPk(payload.userId);
-    if (!findUser) {
+    // Optional: check expiry if you store it in DB
+    if (storedToken.expires_at && storedToken.expires_at < new Date()) {
+      await storedToken.destroy();
+      throw new ApiError(403, 'Session expired. Please login again.');
+    }
+
+    const user = await User.findByPk(storedToken.user_id);
+    if (!user) {
       throw new ApiError(404, 'User not found');
     }
 
-    const newAccessToken = generateAccessToken(findUser.id);
-    const newRefreshToken = generateRefreshToken(findUser.id);
-    await AuthToken.update(
-      { token: newRefreshToken },
-      { where: { token: refreshToken } }
-    );
+    // ✅ Generate only a new short-lived access token
+    const newAccessToken = generateAccessToken({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+    });
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Set to true in production
-      sameSite: 'Strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    };
-    res.cookie('refreshToken', newRefreshToken, cookieOptions);
-    res
-      .status(200)
-      .json(
-        ApiResponse.success(
-          'Token refreshed successfully',
-          { accessToken: newAccessToken },
-          200
-        )
-      );
+    // 🚫 Don't re-send refresh cookie — it's already there with its original 7-day expiry
+
+    return res.status(200).json(
+      ApiResponse.success('Access token refreshed successfully', {
+        accessToken: newAccessToken,
+      })
+    );
   });
 
+  // Set username for OAuth users
   static setUsername = asynchandler(async (req, res) => {
     const { username } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.id; // from auth middleware
+
     if (!username) {
       throw new ApiError(400, 'Username is required');
     }
+
+    // Check if username already exists
     const existingUser = await User.findOne({ where: { username } });
     if (existingUser) {
       throw new ApiError(409, 'Username already exists');
     }
+
+    // Update username in the User table
     await User.update({ username }, { where: { id: userId } });
+
+    // Fetch updated user data
+    const updatedUser = await User.findByPk(userId, {
+      attributes: [
+        'id',
+        'email',
+        'username',
+        'name',
+        'profile_pic',
+        'status_message',
+      ],
+    });
+
+    // Generate new access and refresh tokens
+    const accessToken = generateAccessToken({
+      id: updatedUser.id,
+      username: updatedUser.username,
+      email: updatedUser.email,
+    });
+    const refreshToken = generateRefreshToken({ id: updatedUser.id });
+
+    // Update refresh token in AuthToken table
+    await AuthToken.update(
+      {
+        refresh_token: refreshToken,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+      { where: { user_id: updatedUser.id } }
+    );
+
+    // Set refresh token in HTTP-only cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    // Return success response with new access token and updated user
     res
       .status(200)
       .json(
         ApiResponse.success(
           'Username set successfully',
-          { availability: true },
+          { accessToken, user: updatedUser },
           200
         )
       );
   });
 
-  static googleCallback = asynchandler(async (req, res) => {
-    // Successful authentication, generate tokens and redirect or respond
-    const userProfile = req.user; // Retrieved from passport
+  // Google OAuth callback
+  static googleCallback = async (req, res) => {
+    try {
+      const profile = req.user; // Passport sets this
 
-    if (!userProfile) {
-      throw new ApiError(400, 'Google authentication failed'); // This should not happen
-    }
+      if (!profile || !profile.emails?.[0]?.value) {
+        return res.redirect(`${process.env.FRONTEND_URL}/login`);
+      }
 
-    // Check if user exists
-    let user = await User.findOne({
-      where: { email: userProfile.emails[0].value },
-    });
-
-    if (!user) {
-      // If user doesn't exist, create a new user
-      user = await User.create({
-        username: userProfile.emails[0].value.split('@')[0],
-        email: userProfile.emails[0].value,
-        name: userProfile.displayName,
-        password: null, // No password since it's OAuth
-        oauth_provider: 'google',
-        oauth_id: userProfile.id,
+      // Check if user exists
+      let user = await User.findOne({
+        where: { email: profile.emails[0].value },
       });
+
+      // If user doesn't exist → create
+      if (!user) {
+        user = await User.create({
+          email: profile.emails[0].value,
+          username: null, // no username yet
+          name: profile.displayName || profile.emails[0].value.split('@')[0],
+          password_hash: '',
+          oauth_provider: 'google',
+          oauth_id: profile.id,
+        });
+      }
+
+      // Generate tokens (even if username is null)
+      const accessToken = generateAccessToken({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+      });
+      const refreshToken = generateRefreshToken({ id: user.id });
+
+      // Store refresh token in DB
+      await AuthToken.create({
+        user_id: user.id,
+        refresh_token: refreshToken,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      });
+
+      // Set refresh token in HTTP-only cookie
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+      // Redirect to frontend with access token
+      const redirectUrl = `${process.env.FRONTEND_URL}/auth/success?token=${accessToken}`;
+      return res.redirect(redirectUrl);
+    } catch (err) {
+      console.error('Google OAuth callback error:', err);
+      return res.redirect(`${process.env.FRONTEND_URL}/login`);
     }
+  };
 
-    if (!user.username) {
-      // Redirect to frontend to set username
-      return res.redirect(`${process.env.FRONTEND_URL}/set-username`);
-    }
-
-    const accessToken = generateAccessToken(user.id); // Generate access token
-    const refreshToken = generateRefreshToken(user.id); // Generate refresh token
-    await AuthToken.create({ userId: user.id, token: refreshToken }); // Store refresh token
-
-    // Set refresh token in HTTP-only cookie
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Set to true in production
-      sameSite: 'Strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    };
-
-    // Set refresh token in HTTP-only cookie
-    res.cookie('refreshToken', refreshToken, cookieOptions);
-    res
-      .status(200)
-      .json(
-        ApiResponse.success(
-          'User authenticated successfully',
-          { accessToken },
-          200
-        )
-      );
-  });
-
+  // get user data for state management
   static getUserData = asynchandler(async (req, res) => {
     // req.user is set by authMiddleware
     if (!req.user || !req.user.id) {
@@ -366,10 +416,15 @@ class AuthController {
     if (!user) {
       throw new ApiError(404, 'User not found');
     }
+    console.log('User data retrieved:', !user.username);
     res
       .status(200)
       .json(
-        ApiResponse.success('User data fetched successfully', { user }, 200)
+        ApiResponse.success(
+          'User data fetched successfully',
+          { user, needSetup: !user.username },
+          200
+        )
       );
   });
 }

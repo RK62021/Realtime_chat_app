@@ -2,6 +2,7 @@ const { connectDB } = require('./src/config/db.js');
 const app = require('./app.js');
 const { initializeSocket } = require('./src/config/socket.config.js');
 const http = require('http');
+const redis = require('./src/config/redis.js');
 
 // Initialize Socket.io
 const server = http.createServer(app);
@@ -9,6 +10,14 @@ initializeSocket(server);
 
 app.get('/', (req, res) => {
   res.send('Backend running inside Docker in local 🚀');
+});
+
+//test redis connection  
+redis.set("test_key", "Hello, Redis!");
+redis.get("test_key").then(value => {
+  console.log("Redis test_key:", value);
+}).catch(err => {
+  console.error("Redis get error:", err);
 });
 
 // Connect DataBase

@@ -1,7 +1,7 @@
 const {Router} = require('express');
 const AuthController = require('../controllers/auth.controller.js');
 const router = Router();
-const passport = require('passport');
+const passport = require('../config/googleStrategy.js');
 const authMiddleware = require('../middleware/auth.middleware.js');
 
 // Auth routes
@@ -32,7 +32,7 @@ router.get("/google/callback", passport.authenticate("google", { failureRedirect
 router.get('/username-availability/:username', AuthController.UsernameAvailability);
 
 // set username for OAuth users
-router.post("/set-username", AuthController.setUsername);
+router.post("/set-username", authMiddleware, AuthController.setUsername);
 
 
 module.exports = router;

@@ -1,15 +1,15 @@
 const dotenv = require('dotenv');
+dotenv.config(); // Load environment variables
 const express = require('express');
 const cors = require('cors');
 const routes = require('./src/routes/index.js');
 const {errorHandler} = require('./src/middleware/error.middleware.js');
 const cookieParser = require('cookie-parser');  // Import cookie-parser
-const passport = require('passport');
+const passport = require('./src/config/googleStrategy.js');
 
 
 // Initialize express app
 const app = express(); // Initialize express app
-dotenv.config(); // Load environment variables
 app.use(cors(
     {
         origin: 'http://localhost:5173', // Allow requests from this origin

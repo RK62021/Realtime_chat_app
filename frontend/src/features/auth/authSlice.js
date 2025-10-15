@@ -32,6 +32,7 @@ const authSlice = createSlice({
     // ✅ Restore session if token exists in localStorage
     rehydrate: (state) => {
       const token = localStorage.getItem("token");
+      // console.log("Rehydrating auth state with token:", token);
 
       if (token) {
         try {
@@ -64,7 +65,7 @@ const authSlice = createSlice({
       state.isAuthenticated = true;
       state.token = action.payload.token;
       state.user = action.payload.user;
-      state.needSetup = action.payload.needSetup || false;
+      state.needSetup = action.payload.needSetup;
 
       localStorage.setItem("token", action.payload.token);
     },
@@ -98,6 +99,11 @@ const authSlice = createSlice({
 
       localStorage.removeItem("token");
     },
+
+    // ✅ Set rehydration status
+    setRehydrated: (state, action) => {
+      state.rehydrated = action.payload;
+    }
   },
 
   extraReducers: (builder) => {
@@ -179,6 +185,7 @@ export const {
   setNeedSetup,
   setSocketConnection,
   rehydrate,
+  setRehydrated
 } = authSlice.actions;
 
 export default authSlice.reducer;
