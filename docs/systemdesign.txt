@@ -1,0 +1,18 @@
+                                Chat App
+                                    |
+                            NginX(Reverse Proxy)
+                                    |
+                        Node Server (Multiple Intsances)
+                                    |
+                        Redis Pub/Sub (Socket Scaling)
+                                    |
+                     Messaging Queues (Producer/consumer)
+                                    |
+                                BULK Db Entry
+                                    |
+                              Docker Scale Up
+
+
+fault tolerence with microservice artitecture 
+and what is a serverless artitecture 
+

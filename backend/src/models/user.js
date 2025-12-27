@@ -6,8 +6,8 @@ module.exports = (sequelize) => {
     static associate(models) {
       // Associations
       User.hasMany(models.AuthToken, { foreignKey: 'user_id', onDelete: 'CASCADE' });
-      // User.hasMany(models.Message, { foreignKey: 'sender_id', onDelete: 'CASCADE' });
-      // User.hasMany(models.ChatMember, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+      User.hasMany(models.Message, { foreignKey: 'sender_id', onDelete: 'CASCADE' });
+      User.hasMany(models.ChatMember, { foreignKey: 'user_id', onDelete: 'CASCADE' });
       // User.hasMany(models.CallParticipant, { foreignKey: 'user_id', onDelete: 'CASCADE' });
       // User.hasMany(models.MessageReaction, { foreignKey: 'user_id', onDelete: 'CASCADE' });
       // User.hasMany(models.Notification, { foreignKey: 'user_id', onDelete: 'CASCADE' });

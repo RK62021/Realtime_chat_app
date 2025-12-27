@@ -3,10 +3,11 @@
 A **production-ready real-time chat application** built with:
 - **Node.js, Express** (Backend)
 - **PostgreSQL** (Relational database)
-- **Redis** (Caching & Presence)
+- **Redis** (Caching & Presence & Socket Scaling)
 - **Socket.IO** (Realtime messaging)
 - **Google OAuth2 Login** (Secure authentication)
 - **React + Tailwind** (Frontend)
+- 
 
 This project demonstrates **system design principles**, starting as a **Monolithic app** and evolving toward **Microservices**.
 

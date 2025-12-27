@@ -178,12 +178,16 @@ class AuthController {
 
   // logout user
   static logout = asynchandler(async (req, res) => {
-    const refreshToken = req.cookies.refreshToken;
-    if (!refreshToken) {
-      throw new ApiError(400, 'Refresh token is required');
+    const refreshToken = req.cookies?.refreshToken;
+    if (refreshToken) {
+      await AuthToken.destroy({ where: { refresh_token: refreshToken } });
+      
     }
-    await AuthToken.destroy({ where: { refresh_token: refreshToken } });
-    res.clearCookie('refreshToken');
+    res.clearCookie('refreshToken',{
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+    });
     res
       .status(200)
       .json(ApiResponse.success('User logged out successfully', null, 200));

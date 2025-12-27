@@ -23,10 +23,18 @@ export default function Login() {
 
     try {
       const result = await dispatch(loginThunk(payload)).unwrap();
+      console.log(result);
 
       showToast.success(toastMessages.auth.loginSuccess);
     } catch (err) {
-      showToast.error(toastMessages.auth.loginError);
+      const errorMsg =
+        typeof err === "string"
+          ? err
+          : err?.message || toastMessages.auth.loginError;
+
+        
+
+      showToast.error(errorMsg);
     } finally {
       setLoading(false);
     }

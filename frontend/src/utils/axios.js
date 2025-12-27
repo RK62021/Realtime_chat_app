@@ -8,48 +8,74 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, // ✅ important to send cookies
+  withCredentials: true, // 🔥 send cookies (refresh token)
 });
 
-// Attach access token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token"); // access token from localStorage
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// =======================
+// REQUEST INTERCEPTOR
+// =======================
+api.interceptors.request.use(
+  (config) => {
+    // 👇 If skipAuth is true, do NOT attach access token
+    if (config.skipAuth) return config;
 
-// Handle 401 → try refresh
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// =======================
+// RESPONSE INTERCEPTOR
+// =======================
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // 🚫 If explicitly skipped, don't refresh
+    if (originalRequest?.skipAuth) {
+      return Promise.reject(error);
+    }
+
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry
+    ) {
       originalRequest._retry = true;
+
       try {
         const res = await axios.post(
           `${API_URL}/auth/refresh`,
           {},
-          { withCredentials: true } // send refresh token cookie
+          { withCredentials: true }
         );
+
+        const { accessToken, user, needSetup } = res.data;
 
         store.dispatch(
           loginSuccess({
-            token: res.data.accessToken,
-            user: res.data.user,
-            needSetup: res.data.needSetup,
+            token: accessToken,
+            user,
+            needSetup,
           })
-        ); // update Redux store
+        );
 
-        localStorage.setItem("token", res.data.accessToken); // update localStorage
-        originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`; // set new access token
+        localStorage.setItem("token", accessToken);
 
-        return api(originalRequest); // retry original request
-      } catch (err) {
+        // Update Authorization header and retry
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+
+        return api(originalRequest);
+      } catch (refreshError) {
+        // Refresh failed → force logout
         store.dispatch(logout());
         localStorage.removeItem("token");
         window.location.href = "/login";
-        return Promise.reject(err);
+        return Promise.reject(refreshError);
       }
     }
 

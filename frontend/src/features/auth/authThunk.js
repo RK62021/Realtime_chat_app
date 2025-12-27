@@ -4,6 +4,7 @@ import {
   register,
   forgotPassword,
   usernameSetup,
+  logoutwork
 } from "../../services/auth";
 
 // ---------------- LOGIN ----------------
@@ -63,6 +64,22 @@ export const usernameSetupThunk = createAsyncThunk(
     } catch (err) {
       const message =
         err.response?.data?.message || err.message || "Username setup failed";
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const logoutThunk = createAsyncThunk(
+  "auth/logout",
+  async (_, { rejectWithValue }) => {
+    try {
+      await logoutwork(); // backend clears cookie
+      return true; // important
+    } catch (err) {
+      const message =
+        err.response?.data?.message ||
+        err.message ||
+        "Logout failed";
       return rejectWithValue(message);
     }
   }

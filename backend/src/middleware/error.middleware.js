@@ -8,9 +8,9 @@ class ApiError extends Error {
 
 const errorHandler = (err, req, res, next) => {
     if (err instanceof ApiError) {
-        return res.status(err.statusCode).json({ error: err.message });
+        return res.status(err.statusCode).json({ message: err.message });
     }
-    return res.status(500).json({ error: 'Internal Server Error' });
+    return res.status(500).json({ message: 'Internal Server Error' });
 };
 
 module.exports = { ApiError, errorHandler };

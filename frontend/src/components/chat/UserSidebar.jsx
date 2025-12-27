@@ -1,7 +1,9 @@
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../features/auth/authSlice';
+import {logoutwork} from "../../services/auth"
 import { showToast, toastMessages } from '../../utils/toast';
+import {logoutThunk} from "../../features/auth/authThunk.js"
 
 export default function UserSidebar({ onChatClick, onCallsClick, onSettingsClick }) {
   const dispatch = useDispatch();
@@ -15,10 +17,15 @@ export default function UserSidebar({ onChatClick, onCallsClick, onSettingsClick
     return (a + b).toUpperCase() || a.toUpperCase();
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+  try {
+    await dispatch(logoutThunk()).unwrap();
+    dispatch(logout()); // clears Redux state
     showToast.success(toastMessages.auth.logoutSuccess);
-    dispatch(logout());
-  };
+  } catch (err) {
+    showToast.error(err || "Logout failed");
+  }
+};
 
   return (
     <div className="w-16 lg:w-16 md:w-14 sm:w-12 bg-white/5 backdrop-blur-lg border-r border-white/10 flex flex-col items-center py-4 space-y-4 h-full overflow-hidden">

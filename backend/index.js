@@ -2,11 +2,15 @@ const { connectDB } = require('./src/config/db.js');
 const app = require('./app.js');
 const { initializeSocket } = require('./src/config/socket.config.js');
 const http = require('http');
-const redis = require('./src/config/redis.js');
+const {redis} = require('./src/config/redis.js');
+const initRedisSubscriber = require('./src/redis/subscriber.js');
 
 // Initialize Socket.io
 const server = http.createServer(app);
-initializeSocket(server);
+initializeSocket(server); // initialize socket with the server
+
+// Initialize Redis Subscriber
+initRedisSubscriber();
 
 app.get('/', (req, res) => {
   res.send('Backend running inside Docker in local 🚀');
